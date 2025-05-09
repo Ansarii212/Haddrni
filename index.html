@@ -1,201 +1,133 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>لوحة المشرف</title>
+  <meta charset="UTF-8">
+  <title>لوحة تحكم المشرف</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: 'Cairo', sans-serif;
-      direction: rtl;
-      background-color: #f8f8f8;
-      text-align: center;
-      padding: 20px;
-    }
-    h2 {
-      margin-top: 30px;
-    }
-    form, table {
-      margin: 20px auto;
-    }
-    input {
-      padding: 10px;
-      width: 200px;
-      margin: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 10px;
-      cursor: pointer;
-    }
-    table {
-      border-collapse: collapse;
-      width: 90%;
-      max-width: 800px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: center;
-    }
-    #managerPage {
-      display: none;
-    }
+    body { font-family: 'Cairo', sans-serif; padding: 20px; background-color: #f5f5f5; direction: rtl; }
+    input, button { padding: 10px; margin: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background-color: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #eee; }
+    .hidden { display: none; }
+    .btn-print { margin: 10px 0; background: #2c3e50; color: white; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
+  <h2>تسجيل دخول المشرف</h2>
+  <input type="email" id="email" placeholder="البريد الإلكتروني">
+  <input type="password" id="password" placeholder="كلمة المرور">
+  <button onclick="login()">تسجيل الدخول</button>
 
-  <div id="loginForm">
-    <h2>تسجيل دخول المشرف</h2>
-    <input type="text" id="username" placeholder="اسم المستخدم" required />
-    <br>
-    <input type="password" id="password" placeholder="كلمة المرور" required />
-    <br>
-    <button type="submit">تسجيل الدخول</button>
-  </div>
-
-  <div id="managerPage">
-    <h2>تقرير الحضور</h2>
-    <table id="reportTable">
+  <div id="content" class="hidden">
+    <h2>جدول الحضور</h2>
+    <button class="btn-print" onclick="printTable('attendanceTable', 'جدول الحضور')">طباعة الحضور</button>
+    <table id="attendanceTable">
       <thead>
         <tr>
-          <th>اسم المعلم</th>
-          <th>التاريخ</th>
-          <th>الوقت</th>
+          <th>الاسم</th><th>التاريخ</th><th>الحالة</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
-    <button onclick="printAttendance()">طباعة جدول الحضور</button>
 
-    <h3>قائمة المعلمين</h3>
-    <table id="teacherTable">
+    <h2>جدول المعلمين</h2>
+    <button class="btn-print" onclick="printTable('teachersTable', 'جدول المعلمين')">طباعة المعلمين</button>
+    <table id="teachersTable">
       <thead>
         <tr>
-          <th>اسم المعلم</th>
-          <th>رقم الجوال</th>
+          <th>الاسم</th><th>البريد الإلكتروني</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
-    <button onclick="printTeachers()">طباعة جدول المعلمين</button>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
-
+  <script>
+    // firebase config
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSy...",
+      authDomain: "attendance-sheet-2025.firebaseapp.com",
+      projectId: "attendance-sheet-2025",
+      storageBucket: "attendance-sheet-2025.appspot.com",
+      messagingSenderId: "73881...",
+      appId: "1:73881...:web:8781..."
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    // init Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    let currentUserId = null;
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-    const loginForm = document.querySelector("#loginForm");
-    const managerPage = document.querySelector("#managerPage");
-    const loginButton = loginForm.querySelector("button");
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const userId = userCredential.user.uid;
+          document.getElementById("content").classList.remove("hidden");
 
-    loginButton.addEventListener("click", () => {
-      const username = document.querySelector("#username").value.trim();
-      const password = document.querySelector("#password").value.trim();
+          // جلب جدول الحضور
+          db.collection("attendance").where("managerId", "==", userId)
+            .get().then((querySnapshot) => {
+              const table = document.querySelector("#attendanceTable tbody");
+              table.innerHTML = "";
+              querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                table.innerHTML += `<tr>
+                  <td>${data.name}</td>
+                  <td>${data.date}</td>
+                  <td>${data.status}</td>
+                </tr>`;
+              });
+            });
 
-      get(ref(db, "managers")).then(snapshot => {
-        let success = false;
-        snapshot.forEach(child => {
-          const data = child.val();
-          if (data.username === username && data.password === password) {
-            success = true;
-            currentUserId = child.key;
-          }
+          // جلب جدول المعلمين
+          db.collection("teachers").where("managerId", "==", userId)
+            .get().then((querySnapshot) => {
+              const table = document.querySelector("#teachersTable tbody");
+              table.innerHTML = "";
+              querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                table.innerHTML += `<tr>
+                  <td>${data.name}</td>
+                  <td>${data.email}</td>
+                </tr>`;
+              });
+            });
+        })
+        .catch((error) => {
+          alert("خطأ في تسجيل الدخول: " + error.message);
         });
-
-        if (success) {
-          loginForm.style.display = "none";
-          managerPage.style.display = "block";
-          loadAttendance();
-          loadTeachers();
-        } else {
-          alert("بيانات الدخول غير صحيحة");
-        }
-      });
-    });
-
-    function loadAttendance() {
-      const tableBody = document.querySelector("#reportTable tbody");
-      tableBody.innerHTML = "";
-
-      get(ref(db, "attendance")).then(snapshot => {
-        snapshot.forEach(child => {
-          const data = child.val();
-          if (data.managerId === currentUserId) {
-            const row = `
-              <tr>
-                <td>${data.teacherName}</td>
-                <td>${data.date}</td>
-                <td>${data.time}</td>
-              </tr>
-            `;
-            tableBody.innerHTML += row;
-          }
-        });
-      });
     }
 
-    function loadTeachers() {
-      const teacherBody = document.querySelector("#teacherTable tbody");
-      teacherBody.innerHTML = "";
-
-      get(ref(db, "teachers")).then(snapshot => {
-        snapshot.forEach(child => {
-          const data = child.val();
-          if (data.managerId === currentUserId) {
-            const row = `
-              <tr>
-                <td>${data.name}</td>
-                <td>${data.phone}</td>
-              </tr>
-            `;
-            teacherBody.innerHTML += row;
-          }
-        });
-      });
+    function printTable(tableId, title) {
+      const table = document.getElementById(tableId).outerHTML;
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body { font-family: 'Cairo', sans-serif; direction: rtl; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+            th { background: #eee; }
+          </style>
+        </head>
+        <body>
+          <h2>${title}</h2>
+          ${table}
+          <script>window.print();<\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
-
-    window.printAttendance = function () {
-      const table = document.getElementById("reportTable").outerHTML;
-      const win = window.open('', '', 'height=700,width=900');
-      win.document.write('<html><head><title>جدول الحضور</title>');
-      win.document.write('<style>table {width: 100%; border-collapse: collapse;} th, td {border: 1px solid #000; padding: 10px; text-align: center;}</style>');
-      win.document.write('</head><body>');
-      win.document.write('<h2>تقرير الحضور</h2>');
-      win.document.write(table);
-      win.document.write('</body></html>');
-      win.document.close();
-      win.print();
-    };
-
-    window.printTeachers = function () {
-      const table = document.getElementById("teacherTable").outerHTML;
-      const win = window.open('', '', 'height=700,width=900');
-      win.document.write('<html><head><title>جدول المعلمين</title>');
-      win.document.write('<style>table {width: 100%; border-collapse: collapse;} th, td {border: 1px solid #000; padding: 10px; text-align: center;}</style>');
-      win.document.write('</head><body>');
-      win.document.write('<h2>قائمة المعلمين</h2>');
-      win.document.write(table);
-      win.document.write('</body></html>');
-      win.document.close();
-      win.print();
-    };
   </script>
 </body>
 </html>
