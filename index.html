@@ -303,35 +303,50 @@
   const table = document.getElementById("reportTable").outerHTML;
   const win = window.open("", "", "width=900,height=700");
   win.document.write(`
+
+
+        function printAttendanceTable() {
+  const tableHTML = document.getElementById("reportTable").outerHTML;
+  const styles = `
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        direction: rtl;
+      }
+      th, td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        font-size: 14px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  `;
+
+  const newWindow = window.open("", "_blank");
+  newWindow.document.write(`
     <html>
-    <head>
-      <title>تقرير الحضور</title>
-      <style>
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          font-family: 'Arial', sans-serif;
-          direction: rtl;
-        }
-        th, td {
-          border: 1px solid #ccc;
-          padding: 10px;
-          text-align: center;
-        }
-        th {
-          background-color: #eee;
-        }
-      </style>
-    </head>
-    <body>
-      <h2>تقرير الحضور</h2>
-      ${table}
-      <script>window.print();</script>
-    </body>
+      <head>
+        <title>طباعة تقرير الحضور</title>
+        ${styles}
+      </head>
+      <body>
+        <h2 style="text-align:center;">تقرير الحضور</h2>
+        ${tableHTML}
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        <\/script>
+      </body>
     </html>
   `);
-  win.document.close();
 }
+    
 </script>
 
 </body>
