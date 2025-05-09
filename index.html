@@ -1,367 +1,201 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8">
-  <title>نظام تحضير الموظفين</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لوحة المشرف</title>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      text-align: center;
-      background-color: #f7f7f7;
-      padding: 20px;
+      font-family: 'Cairo', sans-serif;
       direction: rtl;
+      background-color: #f8f8f8;
+      text-align: center;
+      padding: 20px;
+    }
+    h2 {
+      margin-top: 30px;
     }
     form, table {
-      margin: auto;
-      max-width: 400px;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 10px #ccc;
+      margin: 20px auto;
     }
-    input, button, select {
-      width: 100%;
+    input {
       padding: 10px;
-      margin: 8px 0;
-      font-size: 18px;
+      width: 200px;
+      margin: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px;
+      cursor: pointer;
     }
     table {
+      border-collapse: collapse;
       width: 90%;
       max-width: 800px;
-      margin-top: 30px;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 10px;
-      font-size: 16px;
+      padding: 12px;
+      text-align: center;
     }
-    th {
-      background-color: #eee;
-    }
-  .logout-btn {
-      position: fixed;
-      left: 0;
-      top: 0;
-      background: white;
-      color: #3399ff;
-      border: none;
-      padding: 0.3rem 0.7rem;
-      cursor: pointer;
-      border-radius: 4px;
-      font-size: 0.9rem;
+    #managerPage {
       display: none;
     }
   </style>
 </head>
 <body>
 
-<h2 id="registerTitle">تسجيل المدير</h2>
-<form id="registerForm">
-  <input type="text" id="managerName" placeholder="اسم المدير" required>
-  <input type="text" id="schoolName" placeholder="اسم المدرسة" required>
-  <input type="text" id="managerPhone" placeholder="رقم الجوال" required>
-  <input type="password" id="managerPassword" placeholder="كلمة المرور" required>
-  <button type="submit">تسجيل المدير</button>
-</form>
+  <div id="loginForm">
+    <h2>تسجيل دخول المشرف</h2>
+    <input type="text" id="username" placeholder="اسم المستخدم" required />
+    <br>
+    <input type="password" id="password" placeholder="كلمة المرور" required />
+    <br>
+    <button type="submit">تسجيل الدخول</button>
+  </div>
 
-<h2>تسجيل الدخول</h2>
-<form id="loginForm">
-  <input type="text" id="loginPhone" placeholder="رقم الجوال">
-  <input type="password" id="loginPassword" placeholder="كلمة المرور">
-  <button type="submit">دخول</button>
-</form>
+  <div id="managerPage">
+    <h2>تقرير الحضور</h2>
+    <table id="reportTable">
+      <thead>
+        <tr>
+          <th>اسم المعلم</th>
+          <th>التاريخ</th>
+          <th>الوقت</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button onclick="printAttendance()">طباعة جدول الحضور</button>
 
-<button id="logoutBtn" style="display:none;">تسجيل الخروج</button>
-
-<div id="managerPage" style="display:none;">
-  <h2 id="schoolTitle"></h2>
-  
-  <!-- تقرير الحضور أولاً -->
-  <h3>تقرير الحضور</h3>
-  <input type="date" id="dateFilter">
-  <table id="reportTable">
-    <thead>
-      <tr>
-        <th>اسم المعلم</th>
-        <th>الحضور</th>
-        <th>الوقت</th>
-        <th>التاريخ</th>
-        <th>الإحداثيات</th>
-        <th>المسافة (متر)</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <button onclick="printTable()">طباعة التقرير</button>
-  
-
-  <!-- إضافة معلم بعد تقرير الحضور -->
-  <h3>إضافة معلم جديد</h3>
-  <form id="addTeacherForm">
-    <input type="text" id="teacherName" placeholder="اسم المعلم">
-    <input type="text" id="teacherPhone" placeholder="رقم جوال المعلم">
-    <input type="password" id="teacherPassword" placeholder="كلمة المرور">
-    <button type="submit">إضافة معلم</button>
-  </form>
-</div>
-
-<div id="teacherPage" style="display:none;">
-  <h2>مرحبًا <span id="teacherNameDisplay"></span></h2>
-  <button id="markAttendance">تحضير الآن</button>
-</div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, child, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCr4T8GLRxtf_6LNrokjKvmBOwSkuGO5yQ",
-    authDomain: "hamsa-6009e.firebaseapp.com",
-    databaseURL: "https://hamsa-6009e-default-rtdb.firebaseio.com",
-    projectId: "hamsa-6009e",
-    storageBucket: "hamsa-6009e.appspot.com",
-    messagingSenderId: "998163671039",
-    appId: "1:998163671039:web:d1930ea5b71a3a3fc729ca",
-    measurementId: "G-PD1QB8X0FE"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const auth = getAuth();
-
-  const registerForm = document.getElementById("registerForm");
-  const loginForm = document.getElementById("loginForm");
-  const addTeacherForm = document.getElementById("addTeacherForm");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  let currentUserId = null;
-  let schoolLocation = null;
-
-  // إخفاء نموذج تسجيل المدير إذا تم مسبقًا
-  if (localStorage.getItem("managerRegistered") === "true") {
-    registerForm.style.display = "none";
-    document.getElementById("registerTitle").style.display = "none";
-  }
-
-  registerForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = managerName.value;
-    const school = schoolName.value;
-    const phone = managerPhone.value;
-    const password = managerPassword.value;
-    const email = phone + "@admin.com";
-
-    navigator.geolocation.getCurrentPosition(pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      createUserWithEmailAndPassword(auth, email, password).then(userCred => {
-        const uid = userCred.user.uid;
-        currentUserId = uid;
-        schoolLocation = { lat, lng };
-
-        set(ref(db, "managers/" + uid), {
-          name, school, phone, lat, lng
-        });
-
-        localStorage.setItem("managerRegistered", "true");
-        alert("تم تسجيل المدير بنجاح");
-        registerForm.style.display = "none";
-        document.getElementById("registerTitle").style.display = "none";
-        loginForm.style.display = "block";
-      });
-    });
-  });
-
-  loginForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const phone = loginPhone.value;
-    const password = loginPassword.value;
-    const email = phone + "@admin.com";
-
-    signInWithEmailAndPassword(auth, email, password).then(cred => {
-      const uid = cred.user.uid;
-      currentUserId = uid;
-
-      get(ref(db, "managers/" + uid)).then(snap => {
-        if (snap.exists()) {
-          const data = snap.val();
-          schoolLocation = { lat: data.lat, lng: data.lng };
-          document.getElementById("schoolTitle").innerText = `المدرسة: ${data.school} | المدير: ${data.name}`;
-          loginForm.style.display = "none";
-          document.getElementById("managerPage").style.display = "block";
-          logoutBtn.style.display = "block";
-          loadAttendance();
-        } else {
-          get(ref(db, "teachers/" + uid)).then(snap => {
-            if (snap.exists()) {
-              document.getElementById("teacherPage").style.display = "block";
-              loginForm.style.display = "none";
-              logoutBtn.style.display = "block";
-              document.getElementById("teacherNameDisplay").innerText = snap.val().name;
-            }
-          });
-        }
-      });
-    });
-  });
-
-  addTeacherForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = teacherName.value;
-    const phone = teacherPhone.value;
-    const password = teacherPassword.value;
-    const email = phone + "@admin.com";
-
-    createUserWithEmailAndPassword(auth, email, password).then(cred => {
-      const uid = cred.user.uid;
-      set(ref(db, "teachers/" + uid), {
-        name, phone, managerId: currentUserId
-      });
-      alert("تم إضافة المعلم بنجاح");
-      addTeacherForm.reset();
-    });
-  });
-
-  document.getElementById("markAttendance").addEventListener("click", () => {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const now = new Date();
-      const date = now.toLocaleDateString("en-CA");
-      const time = now.toLocaleTimeString();
-
-      const userId = auth.currentUser.uid;
-      get(ref(db, "teachers/" + userId)).then(snap => {
-        const data = snap.val();
-        const managerId = data.managerId;
-
-        get(ref(db, "managers/" + managerId)).then(mgrSnap => {
-          const mgr = mgrSnap.val();
-          const distance = getDistance(mgr.lat, mgr.lng, lat, lng);
-
-          const newRef = push(ref(db, "attendance/" + managerId));
-          set(newRef, {
-            teacher: data.name,
-            status: "حاضر",
-            time,
-            date,
-            lat,
-            lng,
-            distance: Math.round(distance)
-          });
-
-          alert("تم تسجيل الحضور");
-        });
-      });
-    });
-  });
-
-  function loadAttendance() {
-    const tableBody = document.querySelector("#reportTable tbody");
-    tableBody.innerHTML = "";
-
-    const dateFilter = document.getElementById("dateFilter");
-    const path = "attendance/" + currentUserId;
-
-    onValue(ref(db, path), (snapshot) => {
-      tableBody.innerHTML = "";
-      snapshot.forEach(child => {
-        const data = child.val();
-        if (!dateFilter.value || dateFilter.value === data.date) {
-          const row = `
-            <tr>
-              <td>${data.teacher}</td>
-              <td>${data.status}</td>
-              <td>${data.time}</td>
-              <td>${data.date}</td>
-              <td>${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}</td>
-              <td>${data.distance} م</td>
-            </tr>
-          `;
-          tableBody.innerHTML += row;
-        }
-      });
-    });
-
-    loadTeachersReport(); // تحميل تقرير المعلمين تلقائيًا
-  }
-
-  function loadTeachersReport() {
-    const existingTable = document.getElementById("teachersReportTable");
-    if (existingTable) existingTable.remove();
-
-    const table = document.createElement("table");
-    table.id = "teachersReportTable";
-    table.innerHTML = `
+    <h3>قائمة المعلمين</h3>
+    <table id="teacherTable">
       <thead>
         <tr>
           <th>اسم المعلم</th>
           <th>رقم الجوال</th>
-          <th>كلمة المرور</th>
         </tr>
       </thead>
       <tbody></tbody>
-    `;
-    document.getElementById("managerPage").prepend(table);
+    </table>
+    <button onclick="printTeachers()">طباعة جدول المعلمين</button>
+  </div>
 
-    const btn = document.createElement("button");
-    btn.textContent = "طباعة تقرير المعلمين";
-    btn.onclick = () => printTable();
-    document.getElementById("managerPage").prepend(btn);
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-    const tableBody = table.querySelector("tbody");
-    onValue(ref(db, "teachers"), (snapshot) => {
-      tableBody.innerHTML = "";
-      snapshot.forEach(child => {
-        const data = child.val();
-        if (data.managerId === currentUserId) {
-          const row = `
-            <tr>
-              <td>${data.name}</td>
-              <td>${data.phone}</td>
-              <td>${data.password || "***"}</td>
-            </tr>
-          `;
-          tableBody.innerHTML += row;
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let currentUserId = null;
+
+    const loginForm = document.querySelector("#loginForm");
+    const managerPage = document.querySelector("#managerPage");
+    const loginButton = loginForm.querySelector("button");
+
+    loginButton.addEventListener("click", () => {
+      const username = document.querySelector("#username").value.trim();
+      const password = document.querySelector("#password").value.trim();
+
+      get(ref(db, "managers")).then(snapshot => {
+        let success = false;
+        snapshot.forEach(child => {
+          const data = child.val();
+          if (data.username === username && data.password === password) {
+            success = true;
+            currentUserId = child.key;
+          }
+        });
+
+        if (success) {
+          loginForm.style.display = "none";
+          managerPage.style.display = "block";
+          loadAttendance();
+          loadTeachers();
+        } else {
+          alert("بيانات الدخول غير صحيحة");
         }
       });
     });
-  }
-function printTable() {
-      var tableContent = document.getElementById("tableContainer").innerHTML;
-      var printWindow = window.open('', '', 'width=800,height=600');
-      printWindow.document.write('<html><head><title>طباعة الجدول</title>');
-      printWindow.document.write('<style>table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid black; padding: 8px; text-align: center; }</style>');
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(tableContent);
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-  function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2 - lat1) * Math.PI/180;
-    const Δλ = (lon2 - lon1) * Math.PI/180;
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    function loadAttendance() {
+      const tableBody = document.querySelector("#reportTable tbody");
+      tableBody.innerHTML = "";
 
-    return R * c;
-  }
+      get(ref(db, "attendance")).then(snapshot => {
+        snapshot.forEach(child => {
+          const data = child.val();
+          if (data.managerId === currentUserId) {
+            const row = `
+              <tr>
+                <td>${data.teacherName}</td>
+                <td>${data.date}</td>
+                <td>${data.time}</td>
+              </tr>
+            `;
+            tableBody.innerHTML += row;
+          }
+        });
+      });
+    }
 
-  logoutBtn.addEventListener("click", () => {
-    signOut(auth).then(() => {
-      location.reload();
-    });
-  });
-</script>
+    function loadTeachers() {
+      const teacherBody = document.querySelector("#teacherTable tbody");
+      teacherBody.innerHTML = "";
+
+      get(ref(db, "teachers")).then(snapshot => {
+        snapshot.forEach(child => {
+          const data = child.val();
+          if (data.managerId === currentUserId) {
+            const row = `
+              <tr>
+                <td>${data.name}</td>
+                <td>${data.phone}</td>
+              </tr>
+            `;
+            teacherBody.innerHTML += row;
+          }
+        });
+      });
+    }
+
+    window.printAttendance = function () {
+      const table = document.getElementById("reportTable").outerHTML;
+      const win = window.open('', '', 'height=700,width=900');
+      win.document.write('<html><head><title>جدول الحضور</title>');
+      win.document.write('<style>table {width: 100%; border-collapse: collapse;} th, td {border: 1px solid #000; padding: 10px; text-align: center;}</style>');
+      win.document.write('</head><body>');
+      win.document.write('<h2>تقرير الحضور</h2>');
+      win.document.write(table);
+      win.document.write('</body></html>');
+      win.document.close();
+      win.print();
+    };
+
+    window.printTeachers = function () {
+      const table = document.getElementById("teacherTable").outerHTML;
+      const win = window.open('', '', 'height=700,width=900');
+      win.document.write('<html><head><title>جدول المعلمين</title>');
+      win.document.write('<style>table {width: 100%; border-collapse: collapse;} th, td {border: 1px solid #000; padding: 10px; text-align: center;}</style>');
+      win.document.write('</head><body>');
+      win.document.write('<h2>قائمة المعلمين</h2>');
+      win.document.write(table);
+      win.document.write('</body></html>');
+      win.document.close();
+      win.print();
+    };
+  </script>
 </body>
 </html>
